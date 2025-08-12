@@ -1,18 +1,19 @@
-# Sử dụng python base image (slim để nhẹ hơn)
 FROM python:3.10-slim
 
-# Thiết lập thư mục làm việc trong container
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
-# Sao chép file requirements và cài đặt các thư viện
+# system deps (Pillow, etc.)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git build-essential libglib2.0-0 libgl1 && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Sao chép toàn bộ mã nguồn vào image
 COPY . .
 
-# Expose cổng 8000 (cổng chạy Uvicorn bên trong container)
 EXPOSE 8000
-
-# Lệnh khởi chạy container: chạy Uvicorn server
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
