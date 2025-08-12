@@ -1,57 +1,49 @@
-from typing import List, Dict
+from typing import Dict, List
+import re, json
 from ..utils import http
-from .common import extract_json_by_regex
 
 PATTERN = r"window\.ArgonautExchange\s*=\s*(\{.*?\});"
 
-def search(address: str, max_images: int = 5) -> List[Dict]:
-    # tạo query “mềm” để trang vẫn trả dữ liệu; có thể thay bằng builder cụ thể hơn
-    q = address.replace(" ", "+")
-    url = f"https://www.realestate.com.au/buy/?query={q}"
+def fetch(url: str, max_images: int = 5) -> Dict:
     resp = http.get(url)
-    if resp.status_code != 200:
-        return []
+    if resp is None or resp.status_code != 200:
+        return {}
+    text = resp.text
+    m = re.search(PATTERN, text, re.S)
+    images = []
+    address = price = beds = baths = ptype = None
 
-    data = extract_json_by_regex(resp.text, PATTERN)
-    if not data:
-        return []
-
-    cache = (data.get("resi-property_listing-experience-web") or {}).get("urqlClientCache") or {}
-    # gom các blob data
-    blobs = []
-    for v in cache.values():
-        d = v.get("data")
-        if isinstance(d, str):
-            blobs.append(d)
-
-    import json
-    results: List[Dict] = []
-    for blob in blobs:
+    if m:
         try:
-            dd = json.loads(blob)
+            data = json.loads(m.group(1))
+            cache = (data.get("resi-property_listing-experience-web") or {}).get("urqlClientCache") or {}
+            for v in cache.values():
+                d = v.get("data")
+                if not isinstance(d, str): continue
+                dd = json.loads(d)
+                listing = (dd.get("details") or {}).get("listing") or {}
+                if not listing: continue
+                details = listing.get("propertyDetails") or {}
+                address = (listing.get("address") or {}).get("display", {}).get("fullAddress")
+                price = listing.get("price") or listing.get("advertising", {}).get("price")
+                beds  = details.get("bedrooms")
+                baths = details.get("bathrooms")
+                ptype = details.get("propertyType")
+                media = (listing.get("media") or {}).get("images") or []
+                for m2 in media[:max_images]:
+                    u = m2.get("url") or m2.get("templatedUrl")
+                    if u: images.append({"url": u})
+                break
         except Exception:
-            continue
-        listing = (dd.get("details") or {}).get("listing") or {}
-        if not listing:
-            continue
-        media = (listing.get("media") or {}).get("images") or []
-        images = []
-        for m in media[:max_images]:
-            u = m.get("url") or m.get("templatedUrl")
-            if u:
-                images.append({"url": u})
-        details = listing.get("propertyDetails") or {}
-        addr = (listing.get("address") or {}).get("display", {}).get("fullAddress")
-        results.append({
-            "source": "realestate.com.au",
-            "address": addr,
-            "price": listing.get("price") or listing.get("advertising", {}).get("price"),
-            "bedrooms": details.get("bedrooms"),
-            "bathrooms": details.get("bathrooms"),
-            "propertyType": details.get("propertyType"),
-            "url": listing.get("canonicalUrl") or listing.get("seo", {}).get("canonicalUrl"),
-            "images": images
-        })
-        if len(results) >= 3:
-            break
-    return results
+            pass
+
+    return {
+        "source": "realestate.com.au",
+        "address": address,
+        "price": price,
+        "bedrooms": beds,
+        "bathrooms": baths,
+        "propertyType": ptype,
+        "url": url,
+        "images": images,
+    }

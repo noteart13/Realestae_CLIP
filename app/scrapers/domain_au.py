@@ -1,45 +1,43 @@
-from typing import List, Dict
+from typing import Dict, List
+from bs4 import BeautifulSoup
+import json
 from ..utils import http
 from .common import parse_next_data
 
-def search(address: str, max_images: int = 5) -> List[Dict]:
-    # demo: dùng trang search có query string tối giản
-    url = f"https://www.domain.com.au/?mode=buy&address={address}"
+def fetch(url: str, max_images: int = 5) -> Dict:
     resp = http.get(url)
-    if resp.status_code != 200:
-        return []
+    if resp is None or resp.status_code != 200:
+        return {}
 
+    # thử lấy NEXT_DATA
     data = parse_next_data(resp.text)
-    if not data:
-        return []
+    images = []
+    address = price = beds = baths = ptype = None
 
-    # tuỳ phiên bản Domain, đường dẫn JSON có thể đổi — ta truy thủ một vài key phổ biến
-    props = (data.get("props") or {}).get("pageProps") or {}
-    listings = []
-    # cố gắng tìm một mảng listing trong props
-    for k, v in props.items():
-        if isinstance(v, list):
-            for item in v:
-                listings.append(item)
-        elif isinstance(v, dict) and "listings" in v and isinstance(v["listings"], list):
-            listings.extend(v["listings"])
+    if data:
+        comp = (data.get("props") or {}).get("pageProps", {}).get("componentProps") or {}
+        address = (comp.get("address") or {}).get("streetAddress") if isinstance(comp.get("address"), dict) else comp.get("address")
+        price = comp.get("price") or comp.get("advertisedPrice")
+        beds  = comp.get("beds") or comp.get("bedrooms")
+        baths = comp.get("baths") or comp.get("bathrooms")
+        ptype = comp.get("propertyType")
+        gallery = comp.get("gallery") or comp.get("images") or []
+        for g in gallery[:max_images]:
+            u = g.get("url") if isinstance(g, dict) else g
+            if u: images.append({"url": u})
 
-    results = []
-    for it in listings[:3]:  # giới hạn vài kết quả đầu
-        images = []
-        gallery = (it.get("gallery") or it.get("images") or [])
-        for img in gallery[:max_images]:
-            u = img.get("url") if isinstance(img, dict) else img
-            if u:
-                images.append({"url": u})
-        results.append({
-            "source": "domain.com.au",
-            "address": (it.get("address") or {}).get("streetAddress") if isinstance(it.get("address"), dict) else it.get("address"),
-            "price": it.get("price") or it.get("advertisedPrice"),
-            "bedrooms": it.get("beds") or it.get("bedrooms"),
-            "bathrooms": it.get("baths") or it.get("bathrooms"),
-            "propertyType": it.get("propertyType"),
-            "url": it.get("url") or it.get("canonicalUrl"),
-            "images": images
-        })
-    return results
+    # nếu NEXT_DATA không có, fallback HTML
+    if not address:
+        soup = BeautifulSoup(resp.text, "lxml")
+        h = soup.find("meta", property="og:title")
+        if h and h.get("content"): address = h["content"]
+    return {
+        "source": "domain.com.au",
+        "address": address,
+        "price": price,
+        "bedrooms": beds,
+        "bathrooms": baths,
+        "propertyType": ptype,
+        "url": url,
+        "images": images,
+    }

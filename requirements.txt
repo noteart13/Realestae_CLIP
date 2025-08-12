@@ -1,15 +1,15 @@
---extra-index-url https://download.pytorch.org/whl/cpu
 fastapi
 uvicorn[standard]
+requests
 httpx[http2]==0.27.2
 beautifulsoup4
 lxml
-python-dotenv
-pydantic>=2.7
 duckduckgo_search==5.3.1
+pydantic
+pydantic-settings
 Pillow
-torch==2.2.2
-torchvision==0.17.2
+torch
+torchvision
 ftfy
 regex
 tqdm
