@@ -1,3 +1,4 @@
+# app/api/routes.py
 from typing import List, Dict, Optional
 from fastapi import APIRouter, Query
 from ..services.search_service import search_all
@@ -19,7 +20,6 @@ def search(address: str, use_mock: bool|None=None, max_results: int|None=None, m
             if not r.price:
                 r.price = f"urls: {urls}"
     return SearchResponse(query=address, results=results)
-
 
 @router.get("/search+embed", response_model=SearchResponse, summary="Search + CLIP embeddings")
 def search_with_embed(

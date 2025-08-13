@@ -1,3 +1,4 @@
+# app/utils/clip_runtime.py
 import torch
 import clip
 from PIL import Image

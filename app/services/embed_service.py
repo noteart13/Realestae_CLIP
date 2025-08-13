@@ -1,3 +1,4 @@
+# app/services/embed_service.py
 from ..schemas import Listing, ListingImage
 from ..utils.clip_runtime import embed_image_url
 

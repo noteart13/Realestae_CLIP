@@ -5,7 +5,7 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 
 WORKDIR /app
 
-# system deps (Pillow, etc.)
+# System deps for Pillow, etc.
 RUN apt-get update && apt-get install -y --no-install-recommends \
     git build-essential libglib2.0-0 libgl1 && \
     rm -rf /var/lib/apt/lists/*

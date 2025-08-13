@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: realestate-clip-api
+  labels:
+    app: realestate-clip-api
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: realestate-clip-api
+  template:
+    metadata:
+      labels:
+        app: realestate-clip-api
+    spec:
+      containers:
+      - name: realestate-clip-api
+        image: asia-southeast1-docker.pkg.dev/<PROJECT_ID>/<REPO_NAME>/realestate-clip-api:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8000
+        env:
+        - name: ENV
+          value: "prod"
+        # Optionally add health probes for better resilience
+        # livenessProbe:
+        #   httpGet:
+        #     path: /
+        #     port: 8000
+        #   initialDelaySeconds: 15
+        #   periodSeconds: 20
+        # readinessProbe:
+        #   httpGet:
+        #     path: /
+        #     port: 8000
+        #   initialDelaySeconds: 5
+        #   periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: realestate-clip-service
+spec:
+  type: LoadBalancer
+  selector:
+    app: realestate-clip-api
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
